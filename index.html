@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Game v0.1 | ygpydh</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="arcade-cabinet">
+        <div class="scanlines"></div>
+        
+        <div class="ui-layer">
+            <div class="hud">
+                <div>SCORE: <span id="score">0</span></div>
+                <div class="weapon-box">WEAPON: <span id="weapon-level" style="color: #fff">LV.1</span></div>
+            </div>
+            
+            <div id="start-screen" class="panel">
+                <h1 class="glitch" data-text="SPACE GAME">SPACE GAME</h1>
+                <p class="version">v0.1 Early Access</p>
+                <p class="instruction">DESTROY <span style="color:#f03">RED</span> | DODGE DEBRIS</p>
+                <div class="controls">
+                    <p><span>WASD</span> MOVE</p>
+                    <p><span>SHIFT</span> FOCUS (SLOW)</p>
+                    <p><span>SPACE</span> SHOOT</p>
+                </div>
+                <button id="start-btn">INITIALIZE</button>
+            </div>
+
+            <div id="pause-screen" class="panel hidden">
+                <h1>PAUSED</h1>
+                <button id="resume-btn">RESUME</button>
+            </div>
+
+            <div id="game-over-screen" class="panel hidden">
+                <h1 class="danger">MISSION FAILED</h1>
+                <p>Final Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">RETRY</button>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
