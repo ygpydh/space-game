@@ -1,50 +1,121 @@
-# 🚀 Space Game
+# ⚡ 雷霆战机 Thunder Fighter
 
-A high-performance arcade shooter built with native JavaScript.
-Classic gameplay, infinite progression, and zero dependencies.
+基于原生 JavaScript 的经典竖版飞行射击游戏，重构自 [space-game](https://github.com/ygpydh/space-game)，实现雷霆战机核心玩法。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-v0.1-green.svg)
+![Version](https://img.shields.io/badge/version-v1.0-green.svg)
 
-## 📖 About The Project
+## 🎮 游戏特性
 
-**Space Game** is a minimalist STG (Shooting Game) engine designed for the web.
-It features a custom-built entity pooling system to ensure smooth 60FPS performance even with hundreds of bullets on screen.
+### 核心玩法
+- **自动射击** — 飞机自动开火，专注移动躲避
+- **多类型敌机** — 小型战斗机、中型攻击机、重型轰炸机，各有独特移动模式和攻击方式
+- **Boss 战** — 每关末尾出现 Boss，拥有多阶段弹幕模式（扇形、瞄准、环形、弹幕雨），血量过半进入狂暴状态
+- **敌机弹幕** — 中型和大型敌机会发射子弹，Boss 有多种弹幕模式
+- **生命值系统** — 玩家有 100 点生命值，被击中扣血，血量归零才游戏结束
+- **无敌帧** — 被击中后短暂无敌，避免连续掉血
 
-### ✨ Key Features
+### 武器系统
+- **直射** — 高伤害直线弹，升级增加弹道数量
+- **散射** — 扇形多发，覆盖范围广
+- **激光** — 高速高伤害光束
+- **导弹** — 自动追踪敌机的追踪导弹
+- 每种武器独立升级（LV.1 - LV.5），拾取 W 道具切换武器类型
 
-* **Infinite Scaling:** Weapon levels have no cap. Your firepower grows as long as you survive.
-* **Procedural Bullet Patterns:** Projectile spread is calculated algorithmically based on your weapon level.
-* **Precision Control:** Pure keyboard input with a dedicated "Focus Mode" (`Shift` key) for precise dodging.
-* **High Performance:** Uses Object Pooling and Delta-Time physics to eliminate garbage collection stutters.
+### 道具系统
+- **P（武器升级）** — 提升当前武器等级
+- **W（武器切换）** — 切换武器类型
+- **S（护盾）** — 获得护盾，抵挡一次伤害
+- **B（炸弹）** — 炸弹数量 +1
+- **H（生命恢复）** — 恢复 25 点生命值
+- **$（金币）** — 获得金币
+- 道具具有磁吸效果，靠近自动吸附
 
-## 🕹️ Controls
+### 其他特性
+- **炸弹清屏** — 按 B 或空格释放炸弹，清除所有敌机子弹并对全屏敌机造成伤害
+- **关卡系统** — 无限关卡，难度递增，每关有进度条
+- **分数与金币** — 击杀敌机获得分数和金币
+- **粒子特效** — 爆炸、火花、烟雾、冲击波等丰富特效
+- **屏幕震动** — 爆炸和受击时的屏幕震动反馈
+- **合成音效** — Web Audio API 实时合成射击、爆炸、道具等音效
+- **背景星空** — 多层滚动星空背景
+- **双操作模式** — 支持鼠标/触摸拖动 和 WASD/方向键 键盘操作
+- **响应式设计** — 适配桌面和移动设备
 
-| Key | Action |
+## 🕹️ 操作说明
+
+| 操作 | 按键/动作 |
 | :--- | :--- |
-| **W / A / S / D** | Move Ship |
-| **SPACE** | Shoot (Hold) |
-| **SHIFT** | Focus Mode (Slow Movement) |
-| **ESC** | Pause Game |
+| **移动** | 鼠标拖动 / 触摸拖动 / WASD / 方向键 |
+| **射击** | 自动射击，无需按键 |
+| **释放炸弹** | B 键 / 空格键 |
+| **暂停游戏** | ESC 键 |
 
-## 🚀 Getting Started
+## 🚀 快速开始
 
-### Installation
+### 运行方式
+1. 克隆仓库
+   ```bash
+   git clone https://github.com/ygpydh/space-game.git
+   ```
+2. 直接用浏览器打开 `index.html` 即可游玩
+3. 或启动本地服务器
+   ```bash
+   cd space-game
+   python3 -m http.server 8000
+   # 然后访问 http://localhost:8000
+   ```
 
-1.  **Clone the repository**
-    ```bash
-    git clone [https://github.com/ygpydh/space-game.git](https://github.com/ygpydh/space-game.git)
-    ```
+无需构建步骤，无需 npm install，纯原生 JavaScript 实现。
 
-2.  **Run the game**
-    * Open `index.html` in any modern web browser.
-    * No build steps or `npm install` required.
+## 📂 项目结构
 
-## 📂 Project Structure
-
-```text
+```
 space-game/
-├── index.html      # Entry point
-├── style.css       # Styles & UI
-├── script.js       # Game Engine (v0.1)
-└── README.md       # Documentation
+├── index.html      # 页面结构与 UI 元素
+├── style.css       # 游戏样式与 HUD 界面
+├── script.js       # 游戏引擎（约 1200 行）
+└── README.md       # 项目说明文档
+```
+
+## 🏗️ 代码架构
+
+### 核心类
+- `Game` — 游戏主类，管理游戏循环、状态、碰撞检测、生成系统
+- `Player` — 玩家飞机，处理移动、射击、武器系统、生命值
+- `Enemy` — 敌机类，支持 small/medium/large 三种类型
+- `Boss` — Boss 类，多阶段攻击模式
+- `Bullet` — 玩家子弹，支持普通/激光/导弹三种类型
+- `EnemyBullet` — 敌机子弹
+- `Item` — 道具类，支持 6 种道具类型
+- `Particle` — 粒子特效，支持圆形/环形/火花/烟雾
+- `Star` — 背景星星
+- `SoundSynth` — Web Audio 合成音效
+- `InputHandler` — 输入处理，支持键盘和指针操作
+
+### 游戏流程
+1. 开始界面 → 点击开始战斗
+2. 关卡进行 → 敌机持续生成，进度条推进
+3. Boss 战 → 进度满后 Boss 出现，击败后进入下一关
+4. 游戏结束 → 生命值归零，显示结算界面
+
+## 🎯 敌机类型
+
+| 类型 | 特点 | 血量 | 速度 | 攻击 |
+| :--- | :--- | :--- | :--- | :--- |
+| **小型** | 红色三角形，直线/摆动移动 | 低 | 快 | 无 |
+| **中型** | 橙色菱形，S型移动 | 中 | 中 | 瞄准射击 |
+| **大型** | 紫色六边形，悬停多方向射击 | 高 | 慢 | 三发扇形 |
+| **Boss** | 巨型战舰，多阶段弹幕 | 极高 | 悬停 | 4种弹幕模式 |
+
+## 📝 开发说明
+
+- 纯原生 HTML5 Canvas + JavaScript，无任何外部依赖
+- 使用 `requestAnimationFrame` 实现 60FPS 游戏循环
+- 倒序遍历数组安全删除实体，避免遍历错误
+- 粒子数量上限控制，保证性能
+- 颜色、速度、概率等参数集中在 `CONFIG` 对象中，便于调整
+
+## 📄 License
+
+MIT License
