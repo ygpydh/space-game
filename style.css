@@ -1,144 +1,509 @@
+/* ===== 雷霆战机 Thunder Fighter 样式 ===== */
 :root {
-    --primary-color: #0ff;
-    --upgrade-color: #d0f;
-    --enemy-color: #f03;
-    --bg-color: #050505;
-    --arcade-font: 'Courier New', monospace;
+    --cyan: #00e5ff;
+    --cyan-dim: rgba(0, 229, 255, 0.3);
+    --blue: #2979ff;
+    --orange: #ff9100;
+    --gold: #ffd600;
+    --red: #ff1744;
+    --green: #00e676;
+    --purple: #d500f9;
+    --bg-dark: #0a0a1a;
+    --bg-panel: rgba(10, 10, 30, 0.92);
+    --border-glow: rgba(0, 229, 255, 0.4);
+    --text-primary: #ffffff;
+    --text-dim: #8899aa;
+    --font-main: 'Courier New', 'Microsoft YaHei', monospace;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: var(--font-main);
+    touch-action: none;
+}
 
 body {
-    background-color: #000;
-    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-family: var(--arcade-font);
-    overflow: hidden;
-    touch-action: none; /* Prevent mobile scroll */
 }
 
-.arcade-cabinet {
+/* ===== 游戏容器 ===== */
+.game-container {
     position: relative;
     width: 100%;
     height: 100%;
-    max-width: 600px;
-    background: var(--bg-color);
-    box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+    max-width: 540px;
+    max-height: 100vh;
+    background: var(--bg-dark);
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0, 229, 255, 0.08);
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* ===== 扫描线效果 ===== */
+.scanlines {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 50;
+}
+
+/* ===== HUD 顶部信息栏 ===== */
+.hud {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    padding: 8px 12px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 40;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+}
+
+.hud-left, .hud-right {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 100px;
+}
+
+.hud-right { align-items: flex-end; }
+
+.hud-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding-top: 2px;
+}
+
+.hud-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.hud-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.hud-value {
+    color: var(--text-primary);
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 0 0 6px rgba(255,255,255,0.3);
+}
+
+.hud-value.cyan { color: var(--cyan); text-shadow: 0 0 8px var(--cyan-dim); }
+.hud-value.gold { color: var(--gold); text-shadow: 0 0 8px rgba(255, 214, 0, 0.4); }
+.hud-value.orange { color: var(--orange); text-shadow: 0 0 8px rgba(255, 145, 0, 0.4); }
+
+/* ===== 关卡信息 ===== */
+.stage-info {
+    text-align: center;
+    width: 100%;
+    max-width: 160px;
+}
+
+#stage-label {
+    color: var(--cyan);
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-shadow: 0 0 6px var(--cyan-dim);
+}
+
+.stage-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin-top: 4px;
     overflow: hidden;
 }
 
-canvas { display: block; width: 100%; height: 100%; }
+.stage-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--blue), var(--cyan));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 6px var(--cyan);
+}
 
-.ui-layer {
+/* ===== 生命值条 ===== */
+.health-bar-container {
     position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 52px;
+    left: 12px;
+    right: 12px;
+    z-index: 40;
     pointer-events: none;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    z-index: 10;
+    gap: 8px;
 }
 
-#touch-layer {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 5;
-    pointer-events: auto; /* Allow touch */
+.health-bar-bg {
+    flex: 1;
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 5px;
+    overflow: hidden;
 }
 
-.hud {
+.health-bar-fill {
+    height: 100%;
     width: 100%;
-    padding: 20px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 18px;
-    color: #fff;
-    text-shadow: 0 0 5px var(--primary-color);
-    font-weight: bold;
-    z-index: 20;
+    background: linear-gradient(90deg, var(--green), #69f0ae);
+    border-radius: 4px;
+    transition: width 0.2s ease, background 0.3s ease;
+    box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
 }
 
-.panel {
+.health-bar-fill.low {
+    background: linear-gradient(90deg, var(--orange), #ffab40);
+    box-shadow: 0 0 8px rgba(255, 145, 0, 0.5);
+}
+
+.health-bar-fill.critical {
+    background: linear-gradient(90deg, var(--red), #ff5252);
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.6);
+    animation: pulse-red 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.health-text {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* ===== Boss血条 ===== */
+.boss-bar-container {
     position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80%;
-    max-width: 400px;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    z-index: 40;
+    pointer-events: none;
     text-align: center;
-    background: rgba(0, 0, 0, 0.9);
+}
+
+.boss-label {
+    margin-bottom: 4px;
+}
+
+#boss-name {
+    color: var(--red);
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px rgba(255, 23, 68, 0.6);
+}
+
+.boss-bar-bg {
+    height: 12px;
+    background: rgba(255, 23, 68, 0.1);
+    border: 1px solid rgba(255, 23, 68, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.boss-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #b71c1c, var(--red), #ff5252);
+    border-radius: 5px;
+    transition: width 0.15s ease;
+    box-shadow: 0 0 12px rgba(255, 23, 68, 0.5);
+}
+
+/* ===== 遮罩面板（开始/暂停/结束） ===== */
+.overlay-panel {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(ellipse at center, rgba(10, 10, 40, 0.95), rgba(0, 0, 0, 0.98));
+    z-index: 60;
     padding: 30px;
-    border: 1px solid var(--primary-color);
-    box-shadow: 0 0 40px rgba(0, 255, 255, 0.15);
-    pointer-events: auto;
-    backdrop-filter: blur(8px);
-    border-radius: 4px;
-    z-index: 30;
+    text-align: center;
 }
 
 .hidden { display: none !important; }
 
-h1 {
-    font-size: 32px;
-    color: #fff;
-    margin-bottom: 20px;
-    letter-spacing: 4px;
+/* ===== 游戏标题 ===== */
+.game-title {
+    margin-bottom: 30px;
 }
 
-h1.danger { color: var(--enemy-color); text-shadow: 0 0 10px var(--enemy-color); }
-
-.controls {
-    margin: 20px 0;
-    border-top: 1px solid #333;
-    border-bottom: 1px solid #333;
-    padding: 15px 0;
-    text-align: left;
-    display: inline-block;
+.title-glow {
+    font-size: 48px;
+    color: var(--text-primary);
+    letter-spacing: 8px;
+    text-shadow:
+        0 0 10px var(--cyan),
+        0 0 20px var(--cyan-dim),
+        0 0 40px rgba(0, 229, 255, 0.2);
+    animation: title-float 3s ease-in-out infinite;
+    margin-bottom: 8px;
 }
 
-.controls p { margin: 5px 0; font-size: 14px; color: #aaa; }
-.controls span {
-    color: var(--primary-color);
-    font-weight: bold;
-    border: 1px solid #333;
-    background: #111;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-right: 8px;
+@keyframes title-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+.title-sub {
+    font-size: 14px;
+    color: var(--cyan);
+    letter-spacing: 6px;
+    opacity: 0.7;
+}
+
+.game-info {
+    margin-bottom: 24px;
+}
+
+.info-line {
+    color: var(--text-dim);
+    font-size: 13px;
+    letter-spacing: 2px;
+}
+
+/* ===== 操作说明 ===== */
+.controls-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 30px;
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-size: 12px;
-    min-width: 50px;
+    color: var(--text-dim);
+}
+
+.key {
     display: inline-block;
+    min-width: 90px;
+    padding: 3px 8px;
+    background: rgba(0, 229, 255, 0.08);
+    border: 1px solid var(--border-glow);
+    border-radius: 3px;
+    color: var(--cyan);
+    font-size: 11px;
+    font-weight: bold;
     text-align: center;
 }
 
-button {
-    background: rgba(0, 255, 255, 0.1);
-    color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    padding: 12px 30px;
-    font-family: inherit;
+/* ===== 按钮 ===== */
+.game-btn {
+    width: 220px;
+    padding: 14px 30px;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(41, 121, 255, 0.15));
+    border: 2px solid var(--cyan);
+    border-radius: 4px;
+    color: var(--cyan);
+    font-family: var(--font-main);
     font-size: 16px;
-    letter-spacing: 2px;
+    font-weight: bold;
+    letter-spacing: 4px;
     cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 15px;
-    width: 100%;
+    transition: all 0.2s ease;
+    margin: 6px 0;
+    text-shadow: 0 0 8px var(--cyan-dim);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(0, 229, 255, 0.05);
 }
 
-button:hover {
-    background: var(--primary-color);
+.game-btn:hover {
+    background: linear-gradient(135deg, var(--cyan), var(--blue));
     color: #000;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+    transform: translateY(-2px);
 }
 
-.scanlines {
+.game-btn:active {
+    transform: translateY(0);
+}
+
+.game-btn.secondary {
+    border-color: var(--text-dim);
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.03);
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.game-btn.secondary:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
+/* ===== 面板标题 ===== */
+.panel-title {
+    font-size: 32px;
+    color: var(--text-primary);
+    letter-spacing: 6px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 15px rgba(255,255,255,0.2);
+}
+
+.panel-title.danger {
+    color: var(--red);
+    text-shadow: 0 0 20px rgba(255, 23, 68, 0.5);
+}
+
+/* ===== 结算统计 ===== */
+.result-stats {
+    width: 280px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 14px;
+}
+
+.stat-row:last-child { border-bottom: none; }
+
+.stat-row span:first-child {
+    color: var(--text-dim);
+}
+
+.stat-row span:last-child {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.stat-row .gold { color: var(--gold); }
+
+/* ===== 关卡过渡横幅 ===== */
+.stage-banner {
     position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-    background-size: 100% 4px;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    transform: translateY(-50%);
+    z-index: 55;
     pointer-events: none;
-    z-index: 20;
-    animation: scroll 10s linear infinite;
+    text-align: center;
+    animation: banner-show 2.5s ease forwards;
 }
 
-@keyframes scroll { 0% { background-position: 0 0; } 100% { background-position: 0 100%; } }
+@keyframes banner-show {
+    0% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+    15% { opacity: 1; transform: translateY(-50%) scale(1); }
+    80% { opacity: 1; transform: translateY(-50%) scale(1); }
+    100% { opacity: 0; transform: translateY(-50%) scale(1.1); }
+}
+
+.banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#banner-stage {
+    font-size: 36px;
+    color: var(--cyan);
+    font-weight: bold;
+    letter-spacing: 8px;
+    text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan-dim);
+}
+
+#banner-sub {
+    font-size: 16px;
+    color: var(--text-primary);
+    letter-spacing: 4px;
+    opacity: 0.8;
+}
+
+/* ===== 炸弹闪光 ===== */
+.bomb-flash {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(0,229,255,0.4), transparent);
+    z-index: 45;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.bomb-flash.active {
+    animation: bomb-flash-anim 0.6s ease-out forwards;
+}
+
+@keyframes bomb-flash-anim {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ===== 响应式适配 ===== */
+@media (max-width: 400px) {
+    .title-glow { font-size: 36px; letter-spacing: 5px; }
+    .hud-value { font-size: 12px; }
+    .hud-label { font-size: 10px; }
+    .game-btn { width: 180px; font-size: 14px; padding: 12px 20px; }
+    .controls-info { padding: 12px 16px; }
+    .key { min-width: 75px; font-size: 10px; }
+}
