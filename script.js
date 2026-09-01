@@ -44,6 +44,49 @@ const CONFIG = {
     }
 };
 
+// ===== 难度配置 =====
+const DIFFICULTY_CONFIG = {
+    easy: {
+        name: '简单',
+        desc: '敌机较弱，生命充足，适合新手',
+        playerHealth: 150,
+        playerBombs: 5,
+        spawnIntervalMult: 1.6,   // 生成间隔倍率（越大越慢）
+        enemySpeedMult: 0.7,       // 敌机速度倍率
+        enemyHpMult: 0.6,          // 敌机血量倍率
+        enemyBulletSpeedMult: 0.7, // 敌机子弹速度倍率
+        enemyShootIntervalMult: 1.4, // 敌机射击间隔倍率
+        dropRateMult: 1.3,         // 道具掉落率倍率
+        bossHpMult: 0.7            // Boss血量倍率
+    },
+    normal: {
+        name: '普通',
+        desc: '标准挑战，适合大多数玩家',
+        playerHealth: 100,
+        playerBombs: 3,
+        spawnIntervalMult: 1.0,
+        enemySpeedMult: 1.0,
+        enemyHpMult: 1.0,
+        enemyBulletSpeedMult: 1.0,
+        enemyShootIntervalMult: 1.0,
+        dropRateMult: 1.0,
+        bossHpMult: 1.0
+    },
+    hard: {
+        name: '困难',
+        desc: '敌机凶猛，弹幕密集，仅限高手',
+        playerHealth: 70,
+        playerBombs: 2,
+        spawnIntervalMult: 0.65,
+        enemySpeedMult: 1.4,
+        enemyHpMult: 1.6,
+        enemyBulletSpeedMult: 1.3,
+        enemyShootIntervalMult: 0.7,
+        dropRateMult: 0.7,
+        bossHpMult: 1.5
+    }
+};
+
 // ===== 音频系统 =====
 class SoundSynth {
     constructor() {
@@ -628,10 +671,13 @@ class Player {
     reset() {
         this.x = this.game.width / 2 - this.width / 2;
         this.y = this.game.height - 120;
+        // 根据难度设置生命值和炸弹数
+        const diff = this.game.difficultyMult || DIFFICULTY_CONFIG.normal;
+        this.maxHealth = diff.playerHealth;
         this.health = this.maxHealth;
         this.weaponType = 'STRAIGHT';
         this.weaponLevels = { STRAIGHT: 1, SPREAD: 1, LASER: 1, MISSILE: 1 };
-        this.bombs = 3;
+        this.bombs = diff.playerBombs;
         this.isShielded = false;
         this.shieldTimer = 0;
         this.invincibleTimer = 60;
@@ -980,18 +1026,19 @@ class Enemy {
         this.game = game;
         this.type = type;
         const config = CONFIG.ENEMY_TYPES[type];
+        const diff = game.difficultyMult || DIFFICULTY_CONFIG.normal;
         this.width = config.width;
         this.height = config.height;
         this.x = x;
         this.y = y;
-        this.maxHp = config.hp + game.stage * 5;
+        this.maxHp = Math.round((config.hp + game.stage * 5) * diff.enemyHpMult);
         this.hp = this.maxHp;
-        this.baseSpeed = config.speed;
-        this.speed = config.speed;
+        this.baseSpeed = config.speed * diff.enemySpeedMult;
+        this.speed = this.baseSpeed;
         this.score = config.score;
         this.color = config.color;
         this.canShoot = config.shoot;
-        this.shootInterval = config.shootInterval || 90;
+        this.shootInterval = Math.round((config.shootInterval || 90) * diff.enemyShootIntervalMult);
         this.shootTimer = Math.random() * this.shootInterval;
         this.markedForDeletion = false;
         this.hitFlash = 0;
@@ -1015,12 +1062,13 @@ class Enemy {
         this.game.createExplosion(this.x + this.width / 2, this.y + this.height / 2, this.color, this.type === 'large' ? 25 : 15);
         this.game.shakeScreen(this.type === 'large' ? 5 : 2);
 
-        // 掉落道具
-        if (Math.random() < CONFIG.DROP_RATE) {
+        // 掉落道具（应用难度倍率）
+        const dropMult = this.game.difficultyMult?.dropRateMult || 1;
+        if (Math.random() < CONFIG.DROP_RATE * dropMult) {
             this.game.dropItem(this.x + this.width / 2, this.y + this.height / 2);
         }
         // 大型敌机必掉道具
-        if (this.type === 'large' && Math.random() < 0.7) {
+        if (this.type === 'large' && Math.random() < 0.7 * dropMult) {
             this.game.dropItem(this.x + this.width / 2, this.y + this.height / 2);
         }
     }
@@ -1064,6 +1112,7 @@ class Enemy {
     shoot() {
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height;
+        const bulletSpeed = CONFIG.ENEMY_BULLET_SPEED * (this.game.difficultyMult?.enemyBulletSpeedMult || 1);
 
         if (this.type === 'medium') {
             // 中型：单发瞄准玩家
@@ -1072,10 +1121,9 @@ class Enemy {
             const dy = (player.y + player.height / 2) - cy;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 0) {
-                const speed = CONFIG.ENEMY_BULLET_SPEED;
                 this.game.enemyBullets.push(new EnemyBullet(
                     this.game, cx, cy,
-                    (dx / dist) * speed, (dy / dist) * speed,
+                    (dx / dist) * bulletSpeed, (dy / dist) * bulletSpeed,
                     '#ff9100', 5
                 ));
             }
@@ -1085,8 +1133,8 @@ class Enemy {
                 const angle = Math.PI / 2 + i * 0.3;
                 this.game.enemyBullets.push(new EnemyBullet(
                     this.game, cx, cy,
-                    Math.cos(angle) * CONFIG.ENEMY_BULLET_SPEED,
-                    Math.sin(angle) * CONFIG.ENEMY_BULLET_SPEED,
+                    Math.cos(angle) * bulletSpeed,
+                    Math.sin(angle) * bulletSpeed,
                     '#ab47bc', 6
                 ));
             }
@@ -1234,7 +1282,8 @@ class Boss {
         this.x = game.width / 2 - this.width / 2;
         this.y = -this.height - 20;
         this.targetY = 60;
-        this.maxHp = 500 + stage * 300;
+        const bossHpMult = game.difficultyMult?.bossHpMult || 1;
+        this.maxHp = Math.round((500 + stage * 300) * bossHpMult);
         this.hp = this.maxHp;
         this.score = 2000 + stage * 500;
         this.color = '#ff1744';
@@ -1338,6 +1387,7 @@ class Boss {
         const player = this.game.player;
         const px = player.x + player.width / 2;
         const py = player.y + player.height / 2;
+        const bulletSpeed = CONFIG.ENEMY_BULLET_SPEED * (this.game.difficultyMult?.enemyBulletSpeedMult || 1);
 
         switch (this.attackPattern) {
             case 0: // 扇形弹幕
@@ -1346,8 +1396,8 @@ class Boss {
                     const angle = Math.PI / 2 - 0.6 + (i / (count - 1)) * 1.2;
                     this.game.enemyBullets.push(new EnemyBullet(
                         this.game, cx, cy,
-                        Math.cos(angle) * CONFIG.ENEMY_BULLET_SPEED,
-                        Math.sin(angle) * CONFIG.ENEMY_BULLET_SPEED,
+                        Math.cos(angle) * bulletSpeed,
+                        Math.sin(angle) * bulletSpeed,
                         '#ff5252', 6
                     ));
                 }
@@ -1363,8 +1413,8 @@ class Boss {
                         if (dist > 0) {
                             this.game.enemyBullets.push(new EnemyBullet(
                                 this.game, this.x + this.width / 2, this.y + this.height,
-                                (dx / dist) * (CONFIG.ENEMY_BULLET_SPEED + 1),
-                                (dy / dist) * (CONFIG.ENEMY_BULLET_SPEED + 1),
+                                (dx / dist) * (bulletSpeed + 1),
+                                (dy / dist) * (bulletSpeed + 1),
                                 '#ff9100', 7
                             ));
                         }
@@ -1374,12 +1424,13 @@ class Boss {
 
             case 2: // 环形弹幕
                 const ringCount = this.phase === 2 ? 16 : 12;
+                const ringSpeed = 3 * (this.game.difficultyMult?.enemyBulletSpeedMult || 1);
                 for (let i = 0; i < ringCount; i++) {
                     const angle = (i / ringCount) * Math.PI * 2;
                     this.game.enemyBullets.push(new EnemyBullet(
                         this.game, cx, cy - 20,
-                        Math.cos(angle) * 3,
-                        Math.sin(angle) * 3,
+                        Math.cos(angle) * ringSpeed,
+                        Math.sin(angle) * ringSpeed,
                         '#d500f9', 5
                     ));
                 }
@@ -1390,7 +1441,7 @@ class Boss {
                     this.game.enemyBullets.push(new EnemyBullet(
                         this.game, this.x + 15 + i * 25, cy,
                         (Math.random() - 0.5) * 2,
-                        CONFIG.ENEMY_BULLET_SPEED * 0.8,
+                        bulletSpeed * 0.8,
                         '#ff5252', 5
                     ));
                 }
@@ -1515,6 +1566,10 @@ class Game {
         this.bossActive = false;
         this.boss = null;
 
+        // 难度设置
+        this.currentDifficulty = 'normal';
+        this.difficultyMult = DIFFICULTY_CONFIG.normal;
+
         // 实体
         this.player = new Player(this);
         this.bullets = [];
@@ -1592,6 +1647,21 @@ class Game {
         });
         document.getElementById('resume-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('quit-btn').addEventListener('click', () => this._quitToMenu());
+
+        // 难度选择按钮
+        const diffBtns = document.querySelectorAll('.difficulty-btn');
+        const diffDesc = document.getElementById('difficulty-desc');
+        diffBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                diffBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const diff = btn.dataset.difficulty;
+                this.currentDifficulty = diff;
+                if (diffDesc && DIFFICULTY_CONFIG[diff]) {
+                    diffDesc.textContent = DIFFICULTY_CONFIG[diff].desc;
+                }
+            });
+        });
     }
 
     _quitToMenu() {
@@ -1613,6 +1683,9 @@ class Game {
         this.gameOver = false;
         this.paused = false;
         this.stageTransition = false;
+
+        // 应用难度设置
+        this.difficultyMult = DIFFICULTY_CONFIG[this.currentDifficulty] || DIFFICULTY_CONFIG.normal;
 
         this.player.reset();
         this.bullets = [];
@@ -1777,9 +1850,10 @@ class Game {
             return;
         }
 
-        // 生成敌机
-        const baseInterval = CONFIG.SPAWN_INTERVAL_BASE - this.stage * 3;
-        const interval = Math.max(CONFIG.SPAWN_INTERVAL_MIN, baseInterval);
+        // 生成敌机（应用难度倍率）
+        const diffMult = this.difficultyMult?.spawnIntervalMult || 1;
+        const baseInterval = (CONFIG.SPAWN_INTERVAL_BASE - this.stage * 3) * diffMult;
+        const interval = Math.max(CONFIG.SPAWN_INTERVAL_MIN, Math.round(baseInterval));
 
         this.spawnTimer++;
         if (this.spawnTimer >= interval) {
