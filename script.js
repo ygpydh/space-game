@@ -41,7 +41,30 @@ const CONFIG = {
         small: { width: 28, height: 28, hp: 8, speed: 2.2, score: 50, color: '#ff5252', shoot: false },
         medium: { width: 38, height: 38, hp: 25, speed: 1.4, score: 120, color: '#ff9100', shoot: true, shootInterval: 90 },
         large: { width: 56, height: 56, hp: 80, speed: 0.7, score: 300, color: '#ab47bc', shoot: true, shootInterval: 60 }
-    }
+    },
+
+    // 战机等级配置（1-5级）
+    SHIP_MAX_LEVEL: 5,
+    SHIP_LEVEL_BONUS: {
+        // 每级提升：伤害倍率、射速倍率(间隔减小)、生命上限加成、移速加成
+        damageMult: [1.0, 1.15, 1.30, 1.50, 1.75],
+        fireRateMult: [1.0, 0.94, 0.88, 0.82, 0.75], // 射击间隔倍率
+        healthBonus: [0, 20, 40, 65, 100],
+        speedBonus: [0, 0.3, 0.6, 1.0, 1.5],
+        // 外观配色（机身/描边/尾焰/光环）
+        colors: [
+            { body: '#1a237e', edge: '#00e5ff', flame: '#00e5ff', glow: null },
+            { body: '#1a237e', edge: '#40c4ff', flame: '#40c4ff', glow: null },
+            { body: '#311b92', edge: '#b388ff', flame: '#b388ff', glow: '#7c4dff' },
+            { body: '#4a148c', edge: '#e040fb', flame: '#e040fb', glow: '#d500f9' },
+            { body: '#3e2723', edge: '#ffd700', flame: '#ffab00', glow: '#ffd700' }
+        ]
+    },
+
+    // 道具持续时间
+    SHIELD_DURATION: 720,       // 护盾12秒
+    SHIELD_MAX_DURATION: 1200,  // 护盾叠加上限20秒
+    HEALTH_RESTORE: 35          // 回血道具恢复量
 };
 
 // ===== 难度配置 =====
@@ -621,6 +644,7 @@ class Item {
     applyEffect(player) {
         switch (this.type) {
             case 'powerup':
+                player.upgradeShip();
                 player.upgradeWeapon();
                 break;
             case 'shield':
@@ -630,7 +654,7 @@ class Item {
                 player.addBomb();
                 break;
             case 'health':
-                player.heal(25);
+                player.heal(CONFIG.HEALTH_RESTORE);
                 break;
             case 'coin':
                 this.game.addCoins(10);
@@ -653,6 +677,9 @@ class Player {
         this.health = CONFIG.PLAYER_MAX_HEALTH;
         this.maxHealth = CONFIG.PLAYER_MAX_HEALTH;
 
+        // 战机等级系统
+        this.shipLevel = 1;
+
         // 武器系统
         this.weaponType = 'STRAIGHT';
         this.weaponLevels = { STRAIGHT: 1, SPREAD: 1, LASER: 1, MISSILE: 1 };
@@ -673,7 +700,8 @@ class Player {
         this.y = this.game.height - 120;
         // 根据难度设置生命值和炸弹数
         const diff = this.game.difficultyMult || DIFFICULTY_CONFIG.normal;
-        this.maxHealth = diff.playerHealth;
+        this.shipLevel = 1;
+        this.maxHealth = diff.playerHealth + CONFIG.SHIP_LEVEL_BONUS.healthBonus[0];
         this.health = this.maxHealth;
         this.weaponType = 'STRAIGHT';
         this.weaponLevels = { STRAIGHT: 1, SPREAD: 1, LASER: 1, MISSILE: 1 };
@@ -682,6 +710,20 @@ class Player {
         this.shieldTimer = 0;
         this.invincibleTimer = 60;
         this.shootTimer = 0;
+    }
+
+    // 战机等级加成 getters
+    get damageMult() {
+        return CONFIG.SHIP_LEVEL_BONUS.damageMult[this.shipLevel - 1] || 1;
+    }
+    get fireRateMult() {
+        return CONFIG.SHIP_LEVEL_BONUS.fireRateMult[this.shipLevel - 1] || 1;
+    }
+    get moveSpeedBonus() {
+        return CONFIG.SHIP_LEVEL_BONUS.speedBonus[this.shipLevel - 1] || 0;
+    }
+    get shipColor() {
+        return CONFIG.SHIP_LEVEL_BONUS.colors[this.shipLevel - 1] || CONFIG.SHIP_LEVEL_BONUS.colors[0];
     }
 
     get weaponLevel() {
@@ -700,6 +742,27 @@ class Player {
         this.game.updateUI();
     }
 
+    upgradeShip() {
+        if (this.shipLevel < CONFIG.SHIP_MAX_LEVEL) {
+            this.shipLevel++;
+            // 升级时提升生命上限并回血
+            const diff = this.game.difficultyMult || DIFFICULTY_CONFIG.normal;
+            const newMax = diff.playerHealth + CONFIG.SHIP_LEVEL_BONUS.healthBonus[this.shipLevel - 1];
+            const healthGain = newMax - this.maxHealth;
+            this.maxHealth = newMax;
+            this.health = Math.min(this.maxHealth, this.health + healthGain + 10);
+            // 升级特效
+            this.game.createParticles(this.x + this.width / 2, this.y + this.height / 2, 25, this.shipColor.edge || '#00e5ff', 'ring');
+            this.game.createParticles(this.x + this.width / 2, this.y + this.height / 2, 15, this.shipColor.flame || '#00e5ff', 'circle');
+            this.game.shakeScreen(4);
+            this.game.audio.playPowerup?.();
+        } else {
+            // 战机满级给分数
+            this.game.addScore(500);
+        }
+        this.game.updateUI();
+    }
+
     switchWeapon() {
         const types = Object.keys(CONFIG.WEAPON_TYPES);
         const idx = types.indexOf(this.weaponType);
@@ -710,7 +773,8 @@ class Player {
 
     activateShield() {
         this.isShielded = true;
-        this.shieldTimer = 420; // 7秒
+        // 护盾可叠加，上限20秒
+        this.shieldTimer = Math.min(CONFIG.SHIELD_MAX_DURATION, this.shieldTimer + CONFIG.SHIELD_DURATION);
     }
 
     addBomb() {
@@ -757,6 +821,7 @@ class Player {
 
     update() {
         const input = this.game.input;
+        const speedBonus = this.moveSpeedBonus;
 
         // 移动
         if (input.inputMode === 'pointer' && input.pointerActive) {
@@ -766,7 +831,7 @@ class Player {
             const dy = targetY - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 2) {
-                const speed = Math.min(dist * 0.25, CONFIG.PLAYER_SPEED * 1.5);
+                const speed = Math.min(dist * 0.25, (CONFIG.PLAYER_SPEED + speedBonus) * 1.5);
                 this.x += (dx / dist) * speed;
                 this.y += (dy / dist) * speed;
             }
@@ -778,8 +843,8 @@ class Player {
             if (input.has('down')) dy += 1;
             if (dx !== 0 || dy !== 0) {
                 const len = Math.sqrt(dx * dx + dy * dy);
-                this.x += (dx / len) * CONFIG.PLAYER_SPEED;
-                this.y += (dy / len) * CONFIG.PLAYER_SPEED;
+                this.x += (dx / len) * (CONFIG.PLAYER_SPEED + speedBonus);
+                this.y += (dy / len) * (CONFIG.PLAYER_SPEED + speedBonus);
             }
         }
 
@@ -787,10 +852,10 @@ class Player {
         this.x = Math.max(0, Math.min(this.game.width - this.width, this.x));
         this.y = Math.max(60, Math.min(this.game.height - this.height - 10, this.y));
 
-        // 自动射击
+        // 自动射击（应用战机等级射速加成）
         if (this.shootTimer <= 0) {
             this.fire();
-            this.shootTimer = this._getShootInterval();
+            this.shootTimer = Math.round(this._getShootInterval() * this.fireRateMult);
         }
         this.shootTimer--;
 
@@ -820,6 +885,7 @@ class Player {
         const cy = this.y;
         const lv = this.weaponLevel;
         const color = CONFIG.WEAPON_TYPES[this.weaponType].color;
+        const dmgMult = this.damageMult;
 
         this.game.audio.playShoot();
 
@@ -832,7 +898,7 @@ class Player {
                     const offset = (i - (streams - 1) / 2) * spacing;
                     this.game.bullets.push(new Bullet(
                         this.game, cx + offset, cy, 0, -CONFIG.BULLET_SPEED,
-                        3 + lv, color, 'normal'
+                        (3 + lv) * dmgMult, color, 'normal'
                     ));
                 }
                 break;
@@ -848,7 +914,7 @@ class Player {
                     const vy = -Math.cos(angle) * CONFIG.BULLET_SPEED;
                     this.game.bullets.push(new Bullet(
                         this.game, cx, cy, vx, vy,
-                        2 + lv * 0.5, color, 'normal'
+                        (2 + lv * 0.5) * dmgMult, color, 'normal'
                     ));
                 }
                 break;
@@ -861,7 +927,7 @@ class Player {
                     const offset = (i - (streams - 1) / 2) * spacing;
                     this.game.bullets.push(new Bullet(
                         this.game, cx + offset, cy, 0, -CONFIG.BULLET_SPEED * 1.5,
-                        4 + lv * 1.5, color, 'laser'
+                        (4 + lv * 1.5) * dmgMult, color, 'laser'
                     ));
                 }
                 break;
@@ -876,7 +942,7 @@ class Player {
                     this.game.bullets.push(new Bullet(
                         this.game, cx + offsetX, cy + offsetY,
                         side * 2, -6,
-                        8 + lv * 2, color, 'missile'
+                        (8 + lv * 2) * dmgMult, color, 'missile'
                     ));
                 }
                 break;
@@ -888,16 +954,34 @@ class Player {
         ctx.save();
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height / 2;
+        const sc = this.shipColor;
+        const lv = this.shipLevel;
 
         // 无敌闪烁
         if (this.invincibleTimer > 0 && Math.floor(this.invincibleTimer / 4) % 2 === 0) {
             ctx.globalAlpha = 0.4;
         }
 
-        // 引擎火焰
-        const flameHeight = 12 + Math.sin(this.flameFrame) * 4;
+        // 高等级光环（3级以上）
+        if (sc.glow && lv >= 3) {
+            const glowPulse = 0.5 + Math.sin(Date.now() / 200) * 0.2;
+            ctx.shadowColor = sc.glow;
+            ctx.shadowBlur = 20 * glowPulse;
+            ctx.strokeStyle = sc.glow;
+            ctx.globalAlpha = 0.3 * glowPulse;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 30 + lv * 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = this.invincibleTimer > 0 && Math.floor(this.invincibleTimer / 4) % 2 === 0 ? 0.4 : 1;
+            ctx.shadowBlur = 0;
+        }
+
+        // 引擎火焰（随等级增大）
+        const flameBoost = 1 + (lv - 1) * 0.15;
+        const flameHeight = (12 + Math.sin(this.flameFrame) * 4) * flameBoost;
         const gradient = ctx.createLinearGradient(cx, this.y + this.height, cx, this.y + this.height + flameHeight);
-        gradient.addColorStop(0, '#00e5ff');
+        gradient.addColorStop(0, sc.flame);
         gradient.addColorStop(0.5, '#2979ff');
         gradient.addColorStop(1, 'transparent');
         ctx.fillStyle = gradient;
@@ -908,24 +992,25 @@ class Player {
         ctx.closePath();
         ctx.fill();
 
-        // 两侧小引擎
+        // 两侧小引擎（高等级更明显）
+        const sideFlameH = 6 + lv * 1.5;
         ctx.fillStyle = '#ff9100';
         ctx.beginPath();
         ctx.moveTo(cx - 14, this.y + this.height - 6);
-        ctx.lineTo(cx - 12, this.y + this.height + 6 + Math.sin(this.flameFrame + 1) * 2);
+        ctx.lineTo(cx - 12, this.y + this.height + sideFlameH + Math.sin(this.flameFrame + 1) * 2);
         ctx.lineTo(cx - 10, this.y + this.height - 6);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(cx + 10, this.y + this.height - 6);
-        ctx.lineTo(cx + 12, this.y + this.height + 6 + Math.sin(this.flameFrame + 2) * 2);
+        ctx.lineTo(cx + 12, this.y + this.height + sideFlameH + Math.sin(this.flameFrame + 2) * 2);
         ctx.lineTo(cx + 14, this.y + this.height - 6);
         ctx.closePath();
         ctx.fill();
 
-        // 机身 - 战斗机造型
-        ctx.fillStyle = '#1a237e';
-        ctx.strokeStyle = '#00e5ff';
+        // 机身 - 战斗机造型（使用等级配色）
+        ctx.fillStyle = sc.body;
+        ctx.strokeStyle = sc.edge;
         ctx.lineWidth = 1.5;
 
         // 主机身
@@ -939,12 +1024,14 @@ class Player {
         ctx.fill();
         ctx.stroke();
 
-        // 机翼
-        ctx.fillStyle = '#283593';
+        // 机翼（随等级增大翼展）
+        const wingExtend = (lv - 1) * 3; // 每级翼展+3
+        ctx.fillStyle = sc.body;
+        ctx.globalAlpha = 0.85;
         ctx.beginPath();
         ctx.moveTo(cx - 8, this.y + 18);
-        ctx.lineTo(cx - this.width / 2, this.y + 30);
-        ctx.lineTo(cx - this.width / 2, this.y + 36);
+        ctx.lineTo(cx - this.width / 2 - wingExtend, this.y + 30);
+        ctx.lineTo(cx - this.width / 2 - wingExtend, this.y + 36);
         ctx.lineTo(cx - 6, this.y + 32);
         ctx.closePath();
         ctx.fill();
@@ -952,15 +1039,17 @@ class Player {
 
         ctx.beginPath();
         ctx.moveTo(cx + 8, this.y + 18);
-        ctx.lineTo(cx + this.width / 2, this.y + 30);
-        ctx.lineTo(cx + this.width / 2, this.y + 36);
+        ctx.lineTo(cx + this.width / 2 + wingExtend, this.y + 30);
+        ctx.lineTo(cx + this.width / 2 + wingExtend, this.y + 36);
         ctx.lineTo(cx + 6, this.y + 32);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.globalAlpha = 1;
 
         // 尾翼
-        ctx.fillStyle = '#3949ab';
+        ctx.fillStyle = sc.body;
+        ctx.globalAlpha = 0.7;
         ctx.beginPath();
         ctx.moveTo(cx - 4, this.y + this.height - 12);
         ctx.lineTo(cx - 12, this.y + this.height - 2);
@@ -973,14 +1062,24 @@ class Player {
         ctx.lineTo(cx + 4, this.y + this.height - 4);
         ctx.closePath();
         ctx.fill();
+        ctx.globalAlpha = 1;
 
-        // 驾驶舱
-        ctx.fillStyle = '#00e5ff';
-        ctx.shadowColor = '#00e5ff';
+        // 驾驶舱（使用等级描边色）
+        ctx.fillStyle = sc.edge;
+        ctx.shadowColor = sc.edge;
         ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.ellipse(cx, this.y + 14, 4, 7, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 战机等级标识（机头上方小星星）
+        ctx.fillStyle = sc.edge;
+        ctx.shadowColor = sc.edge;
+        ctx.shadowBlur = 6;
+        ctx.font = 'bold 9px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('★'.repeat(lv), cx, this.y - 4);
         ctx.shadowBlur = 0;
 
         // 武器等级指示
@@ -1591,6 +1690,7 @@ class Game {
             stageProgress: document.getElementById('stage-progress'),
             weaponName: document.getElementById('weapon-name'),
             weaponLevel: document.getElementById('weapon-level'),
+            shipLevel: document.getElementById('ship-level'),
             bombCount: document.getElementById('bomb-count'),
             healthBar: document.getElementById('health-bar'),
             healthText: document.getElementById('health-text'),
@@ -1945,6 +2045,13 @@ class Game {
         this.ui.stageLabel.textContent = `第 ${this.stage} 关`;
         this.ui.stageProgress.style.width = `${(this.stageProgress / this.stageTarget) * 100}%`;
 
+        // 战机等级
+        const shipLv = this.player.shipLevel;
+        const shipColors = CONFIG.SHIP_LEVEL_BONUS.colors[shipLv - 1];
+        this.ui.shipLevel.textContent = '★'.repeat(shipLv);
+        this.ui.shipLevel.style.color = shipColors.edge;
+
+        // 武器
         const weaponConfig = CONFIG.WEAPON_TYPES[this.player.weaponType];
         this.ui.weaponName.textContent = weaponConfig.name;
         this.ui.weaponName.style.color = weaponConfig.color;
