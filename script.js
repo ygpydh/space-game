@@ -704,7 +704,7 @@ class Player {
 
         if (this.health <= 0) {
             this.health = 0;
-            this.game.gameOver();
+            this.game.endGame();
         }
         this.game.updateUI();
     }
@@ -1645,7 +1645,7 @@ class Game {
         }
     }
 
-    gameOver() {
+    endGame() {
         this.gameOver = true;
         this.audio.playExplosion();
         this.createExplosion(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#00e5ff', 40);
